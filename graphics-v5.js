@@ -251,7 +251,7 @@ export function upgradeTrain(ctx) {
     }
     // Decorative side skirts and visible suspension and bogies
     bx(coach,3.35,.45,7.45,0,.48,0,lacquer);
-    for(const p of coach.children.slice(-4)){ if(p.geometry?.type==='CylinderGeometry')p.visible=false; }
+    for(const obj of coach.children){ if(obj.geometry?.type==='CylinderGeometry')obj.visible=false; }
     for(const side of [-1,1]){
       for(const z of [-3,3])ornateWheel(coach,side*1.88,.10,z,.65);
       bx(coach,.09,.3,1.7,side*1.9,.36,3.0,lacquer);
