@@ -1,1 +1,504 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Starlight Express — Explore Our Memories</title><style>*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#08051b;color:#fff;font-family:system-ui,sans-serif}canvas{display:block}button{font:inherit;cursor:pointer;border:1px solid #e9b6fa;background:#783da3;color:#fff;border-radius:20px;padding:11px 18px}button:focus-visible{outline:3px solid #fff}#welcome,#modal{position:fixed;inset:0;display:grid;place-items:center;background:#08051bea;z-index:10;padding:20px}#welcome article,#modal article{max-width:530px;width:100%;padding:30px;text-align:center;border:1px solid #bd86e4;border-radius:24px;background:#201039;box-shadow:0 0 90px #a052b055}h1{font-size:clamp(30px,5vw,54px);color:#ffcef5;margin:0 0 10px}h2{color:#ffe2f8}p{line-height:1.6;color:#e8d7f4}#modal{display:none}#modal img{width:min(100%,340px);height:210px;object-fit:cover;border-radius:15px}#hud{position:fixed;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}#hud>div{background:#160b2cbb;border:1px solid #a675c4;border-radius:16px;padding:12px 15px;font-size:14px;backdrop-filter:blur(8px)}#hud button{pointer-events:auto;padding:7px 12px}#hint{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#160b2cbd;border-radius:16px;padding:9px 14px;text-align:center;font-size:13px;max-width:80%;pointer-events:none}#touch{position:fixed;bottom:72px;left:14px;right:14px;display:none;justify-content:space-between;pointer-events:none}#touch .cluster{display:grid;grid-template-columns:repeat(3,48px);gap:5px;pointer-events:auto}#touch button{padding:0;width:48px;height:48px;touch-action:none;background:#683a92bb}#touch .look{display:flex;gap:8px;align-items:end;pointer-events:auto}#touch .look button{width:56px;height:56px;touch-action:none;background:#683a92bb}@media(pointer:coarse){#touch{display:flex}#hint{bottom:8px;font-size:11px}}@media(max-width:520px){#hud{font-size:12px}#hud>div{padding:8px}#hud .right{max-width:130px}}#crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff8;font-size:22px;pointer-events:none}</style></head><body><div id="welcome"><article><h1>Starlight Express ✨</h1><p>Step inside a magical train and discover four carriages of memories. Walk up to a glowing picture and tap it to reveal a secret.</p><p><small>Desktop: WASD / arrow keys to walk, drag to look, E to open. Mobile: movement and look buttons, tap pictures.</small></p><button id="begin">Enter the Night Train</button></article></div><div id="hud"><div><strong>✦ Our Journey</strong><div id="carriage">Carriage 1 · The First Spark</div></div><div class="right"><span id="found">0 / 8 memories found</span> <button id="help">Help</button></div></div><div id="crosshair">✧</div><div id="hint">Walk through the glowing doorway · Tap a picture to discover a memory</div><div id="touch"><div class="cluster"><span></span><button data-move="forward">▲</button><span></span><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button></div><div class="look"><button data-look="left">↶</button><button data-look="right">↷</button><button id="openNear">Open ✦</button></div></div><div id="modal"><article><img id="photo" alt="Illustrated memory placeholder"><h2 id="memoryTitle"></h2><p id="memoryBody"></p><button id="close">Continue exploring</button></article></div><script type="module">import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js';const scene=new THREE.Scene();scene.background=new THREE.Color(0x09051d);const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,150);camera.position.set(0,1.7,1);const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);scene.add(new THREE.AmbientLight(0xaaa1ff,1.5));const lamp=new THREE.PointLight(0xffc3ef,48,22);lamp.position.set(0,3,1);scene.add(lamp);const colors=[0x4d2777,0x673a8c,0x4d377b,0x763f83],titles=['The First Spark','Little Moments','Our Dreams','Forever & Beyond'];const memories=[['The First Hello','Some stories begin with a simple hello. Replace this illustration with your favorite first photo.'],['A Beautiful Beginning','That first smile became the start of something wonderful.'],['The Day We Laughed','The smallest moments can become the brightest memories.'],['Our Favorite Place','Some places feel magical because of who is beside us.'],['A Thousand Wishes','There are so many adventures still waiting for us.'],['Under the Same Stars','Even across distances, we can look up at the same sky.'],['The Journey Continues','Every carriage is another chapter of our story.'],['My Favorite Destination','Wherever the tracks lead, my favorite destination is you.']];const frames=[],discovered=new Set();const floorMat=new THREE.MeshStandardMaterial({color:0x2c1b48,roughness:.65}),wallMat=new THREE.MeshStandardMaterial({color:0x3b205f,side:THREE.DoubleSide}),gold=new THREE.MeshStandardMaterial({color:0xf0b6d8,metalness:.55,roughness:.3}),glass=new THREE.MeshBasicMaterial({color:0x25194f,side:THREE.DoubleSide});function cube(w,h,d,x,y,z,mat,parent=scene){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);mesh.position.set(x,y,z);parent.add(mesh);return mesh}const length=10;for(let i=0;i<4;i++){const center=-i*length;cube(5,.22,9.8,0,-.12,center,floorMat);cube(5,.22,9.8,0,3.65,center,gold);for(const side of [-1,1]){cube(.16,3.5,9.8,side*2.5,1.7,center,wallMat);for(const dz of [-3.5,0,3.5]){cube(.08,1.65,1.5,side*2.4,2,center+dz,glass);cube(.12,.12,1.75,side*2.35,2.9,center+dz,gold)}}const light=new THREE.PointLight(0xffb8ec,18,9);light.position.set(0,3.2,center);scene.add(light);cube(1.4,.07,9.4,0,.015,center,new THREE.MeshStandardMaterial({color:colors[i],emissive:colors[i],emissiveIntensity:.17}));if(i<3){const boundary=center-5;for(const side of [-1,1])cube(1.55,3.5,.22,side*1.73,1.7,boundary,gold);cube(1.9,.5,.22,0,3.23,boundary,gold)}}cube(5,3.5,.25,0,1.7,5,gold);cube(5,3.5,.25,0,1.7,-35,gold);const starGeo=new THREE.BufferGeometry(),starPts=[];for(let i=0;i<900;i++)starPts.push((Math.random()-.5)*100,Math.random()*50-10,(Math.random()-.5)*150);starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPts,3));scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xf7d6ff,size:.12})));function artwork(index){const canvas=document.createElement('canvas');canvas.width=640;canvas.height=440;const ctx=canvas.getContext('2d');const grad=ctx.createLinearGradient(0,0,640,440);grad.addColorStop(0,['#563b9e','#a14e8d','#4c5da3','#b25b91'][Math.floor(index/2)]);grad.addColorStop(1,'#170d39');ctx.fillStyle=grad;ctx.fillRect(0,0,640,440);for(let i=0;i<85;i++){ctx.fillStyle='rgba(255,224,255,'+(Math.random()*.7+.2)+')';ctx.beginPath();ctx.arc(Math.random()*640,Math.random()*440,Math.random()*2.5+.5,0,Math.PI*2);ctx.fill()}ctx.font='96px serif';ctx.textAlign='center';ctx.fillText(['✦','♡','☾','✧'][index%4],320,215);ctx.font='bold 29px system-ui';ctx.fillStyle='#fff4ff';ctx.fillText(memories[index][0],320,330);return canvas.toDataURL('image/png')}for(let i=0;i<8;i++){const car=Math.floor(i/2),z=-car*10+(i%2===0?2.1:-2.1),side=i%2===0?-1:1;const uri=artwork(i);const tex=new THREE.CanvasTexture(Object.assign(document.createElement('canvas'),{width:1,height:1}));const loader=new THREE.TextureLoader();const texture=loader.load(uri);texture.colorSpace=THREE.SRGBColorSpace;const plane=new THREE.Mesh(new THREE.PlaneGeometry(2.3,1.6),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));plane.position.set(side*2.31,1.75,z);plane.rotation.y=side*Math.PI/2;plane.userData={index:i,uri};scene.add(plane);frames.push(plane);cube(.12,1.85,2.55,side*2.37,1.75,z,gold)}let yaw=0,pitch=0,drag=false,lastX=0,lastY=0,started=false;const keys=new Set();const held=new Set();function show(index){const item=frames[index];discovered.add(index);document.querySelector('#found').textContent=discovered.size+' / 8 memories found';document.querySelector('#photo').src=item.userData.uri;document.querySelector('#memoryTitle').textContent=memories[index][0];document.querySelector('#memoryBody').textContent=memories[index][1];document.querySelector('#modal').style.display='grid';keys.clear()}function near(){let best=-1,dist=3.3;for(let i=0;i<frames.length;i++){const d=camera.position.distanceTo(frames[i].position);if(d<dist){best=i;dist=d}}return best}function openMemory(){const i=near();if(i>=0)show(i)}document.querySelector('#close').onclick=()=>document.querySelector('#modal').style.display='none';document.querySelector('#begin').onclick=()=>{started=true;document.querySelector('#welcome').style.display='none'};document.querySelector('#help').onclick=()=>{document.querySelector('#welcome').style.display='grid'};document.querySelector('#openNear').onclick=openMemory;addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys.add(e.key.toLowerCase());if(e.key.toLowerCase()==='e'&&document.querySelector('#modal').style.display!=='grid')openMemory();if(e.key==='Escape')document.querySelector('#modal').style.display='none'});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));renderer.domElement.addEventListener('pointerdown',e=>{drag=true;lastX=e.clientX;lastY=e.clientY});addEventListener('pointerup',()=>drag=false);renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;yaw-=(e.clientX-lastX)*.004;pitch=Math.max(-.65,Math.min(.65,pitch-(e.clientY-lastY)*.003));lastX=e.clientX;lastY=e.clientY});renderer.domElement.addEventListener('click',e=>{const pointer=new THREE.Vector2(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);const ray=new THREE.Raycaster();ray.setFromCamera(pointer,camera);const hits=ray.intersectObjects(frames);if(hits.length&&hits[0].distance<5)show(hits[0].object.userData.index)});for(const b of document.querySelectorAll('[data-move],[data-look]')){const action=b.dataset.move||b.dataset.look;b.addEventListener('pointerdown',e=>{e.preventDefault();held.add(action);b.setPointerCapture(e.pointerId)});for(const evt of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(evt,()=>held.delete(action))}let previous=performance.now();function animate(now){requestAnimationFrame(animate);const dt=Math.min((now-previous)/1000,.04);previous=now;if(started&&document.querySelector('#modal').style.display!=='grid'){const forward=Number(keys.has('w')||keys.has('arrowup')||held.has('forward'))-Number(keys.has('s')||keys.has('arrowdown')||held.has('back'));const strafe=Number(keys.has('d')||held.has('right'))-Number(keys.has('a')||held.has('left'));const dx=(Math.sin(yaw)*forward+Math.cos(yaw)*strafe)*dt*3.3,dz=(-Math.cos(yaw)*forward+Math.sin(yaw)*strafe)*dt*3.3;camera.position.x=Math.max(-2.05,Math.min(2.05,camera.position.x+dx));camera.position.z=Math.max(-34.3,Math.min(4.2,camera.position.z+dz));yaw+=(Number(held.has('look-right'))-Number(held.has('look-left')))*dt*1.5;camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;const n=Math.min(3,Math.floor(Math.max(0,4.9-camera.position.z)/10));document.querySelector('#carriage').textContent='Carriage '+(n+1)+' · '+titles[n]}renderer.render(scene,camera)}requestAnimationFrame(animate);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Starlight Express — Explore Our Train</title>
+<meta name="theme-color" content="#110822" />
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0620;color:#fff;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+  canvas{display:block}
+  #ui{position:fixed;inset:0;pointer-events:none}
+  .card{background:rgba(29,14,58,.82);backdrop-filter:blur(12px);border:1px solid rgba(247,186,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.28);border-radius:20px}
+  #intro{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;padding:20px;background:radial-gradient(circle at 50% 25%,rgba(227,145,255,.22),transparent 25%),linear-gradient(180deg,#15092f 0%,#080412 100%)}
+  #intro .box{max-width:700px;padding:28px 26px;text-align:center}
+  #intro h1{margin:8px 0 10px;font-size:clamp(34px,7vw,64px);font-family:Georgia,serif;color:#ffd7fa;text-shadow:0 0 30px rgba(255,153,241,.25)}
+  #intro p{margin:10px auto 0;max-width:560px;line-height:1.7;color:#f5e7ff}
+  #intro .moon{font-size:58px;filter:drop-shadow(0 0 18px rgba(255,180,243,.45))}
+  .primary{pointer-events:auto;border:none;border-radius:999px;background:linear-gradient(135deg,#d875f0,#ffb2db);color:#22082f;padding:14px 22px;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 10px 35px rgba(227,122,224,.35)}
+  .secondary{pointer-events:auto;border:1px solid rgba(255,215,250,.4);background:rgba(104,60,148,.55);color:#fff;border-radius:999px;padding:11px 16px;cursor:pointer}
+  #topbar{position:absolute;top:16px;left:16px;right:16px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+  #status,#counter{padding:14px 16px;min-width:185px}
+  #status strong,#counter strong{display:block;font-size:18px}
+  #status span,#counter span{display:block;margin-top:2px;color:#eadbff;font-size:14px}
+  #hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);padding:10px 16px;max-width:min(92vw,720px);text-align:center;font-size:14px;color:#f2e6ff}
+  #centerPrompt{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);padding:10px 16px;display:none;font-size:14px}
+  #memoryPanel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,520px);padding:22px 22px 18px;display:none;pointer-events:auto}
+  #memoryPanel h2{margin:4px 40px 10px 0;font-size:28px;font-family:Georgia,serif;color:#ffd3f5}
+  #memoryPanel p{margin:0;line-height:1.7;color:#f6edff;white-space:pre-line}
+  #memoryClose{position:absolute;right:14px;top:12px;width:38px;height:38px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#fff;font-size:24px;cursor:pointer}
+  #controlsMobile{position:absolute;right:14px;bottom:80px;display:none;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:8px;pointer-events:auto}
+  #controlsMobile button{border:none;border-radius:18px;background:rgba(74,36,112,.86);color:white;font-size:20px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+  #lookMobile{position:absolute;left:14px;bottom:80px;display:none;grid-template-columns:repeat(2,58px);gap:8px;pointer-events:auto}
+  #lookMobile button{border:none;border-radius:18px;background:rgba(74,36,112,.86);color:white;font-size:22px}
+  #modeActions{position:absolute;top:130px;left:16px;display:flex;gap:10px;pointer-events:auto;flex-wrap:wrap}
+  .small{font-size:13px}
+  @media (max-width: 820px){
+    #controlsMobile,#lookMobile{display:grid}
+    #modeActions{top:auto;left:16px;bottom:210px}
+    #status,#counter{padding:12px 14px;min-width:150px}
+    #status strong,#counter strong{font-size:16px}
+    #hint{font-size:13px;bottom:18px}
+  }
+</style>
+</head>
+<body>
+<div id="intro">
+  <div class="box card">
+    <div class="moon">🌙</div>
+    <h1>Starlight Express</h1>
+    <p>A dreamy night train carrying our memories through the stars. Start outside the train, then step inside and walk through each carriage to discover the pictures yourself.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+      <button id="startBtn" class="primary">Begin our journey ✨</button>
+    </div>
+  </div>
+</div>
+
+<div id="ui">
+  <div id="topbar">
+    <div id="status" class="card"><strong>Outside the train</strong><span>Look around and board when ready</span></div>
+    <div id="counter" class="card"><strong>0 / 8 memories</strong><span>found so far</span></div>
+  </div>
+
+  <div id="modeActions">
+    <button id="enterBtn" class="primary" style="display:none">Enter the train</button>
+    <button id="backOutsideBtn" class="secondary" style="display:none">Back outside</button>
+  </div>
+
+  <div id="centerPrompt" class="card">Press <strong>E</strong> or tap the picture to discover this memory</div>
+  <div id="hint" class="card">Outside: drag to look around • Inside: WASD / arrows to walk • tap pictures to open memories</div>
+
+  <div id="memoryPanel" class="card">
+    <button id="memoryClose" aria-label="Close">×</button>
+    <h2 id="memoryTitle">Memory title</h2>
+    <p id="memoryText"></p>
+  </div>
+
+  <div id="lookMobile">
+    <button data-look="left">⟲</button>
+    <button data-look="right">⟳</button>
+  </div>
+  <div id="controlsMobile">
+    <div></div><button data-move="forward">↑</button><div></div>
+    <button data-move="left">←</button><button data-move="back">↓</button><button data-move="right">→</button>
+    <div></div><div></div><div></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+const memories = [
+  { title: 'First Hello ✨', text: 'Every long journey needs a beginning.\nOurs started with a simple hello that quietly changed everything.' },
+  { title: 'Tiny Moments 💫', text: 'The little laughs, the late messages, and the soft details became pieces of something beautiful.' },
+  { title: 'Same Sky 🌙', text: 'Even when distance stretches between us, we still share the same moon, the same stars, the same night.' },
+  { title: 'Warmest Memory 💗', text: 'Some memories feel like a blanket on a cold night — safe, warm, and impossible to forget.' },
+  { title: 'A Thousand Smiles 😊', text: 'There are smiles you remember for a minute — and smiles you carry with you for a lifetime.' },
+  { title: 'Dreaming Forward 🌠', text: 'Not all beautiful things are in the past. Some are still waiting for us up ahead.' },
+  { title: 'Near in Spirit 🫶', text: 'Love has a strange magic: it makes faraway people feel close enough to touch.' },
+  { title: 'Forever & Beyond 🚆', text: 'This train is not about arriving. It is about choosing the journey again and again — together.' }
+];
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0620);
+scene.fog = new THREE.FogExp2(0x0b0620, 0.016);
+
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 800);
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+
+const hemi = new THREE.HemisphereLight(0xdcc4ff, 0x080814, 1.6);
+scene.add(hemi);
+const moonLight = new THREE.DirectionalLight(0xffd4fb, 2.1);
+moonLight.position.set(-15, 18, -22);
+scene.add(moonLight);
+const magentaFill = new THREE.PointLight(0xff7fe2, 90, 120);
+magentaFill.position.set(0, 8, -16);
+scene.add(magentaFill);
+
+const starsGeo = new THREE.BufferGeometry();
+const starVerts = [];
+for (let i = 0; i < 2200; i++) {
+  starVerts.push((Math.random() - 0.5) * 420, Math.random() * 150 + 8, (Math.random() - 0.5) * 420);
+}
+starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.55, sizeAttenuation: true }));
+scene.add(stars);
+
+const moon = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 24), new THREE.MeshBasicMaterial({ color: 0xfff2cf }));
+moon.position.set(-68, 60, -85);
+scene.add(moon);
+
+const glowSprites = [];
+const glowMat = new THREE.MeshBasicMaterial({ color: 0xffa7ea, transparent: true, opacity: 0.7 });
+for (let i = 0; i < 90; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.05 + Math.random() * 0.09, 6, 6), glowMat);
+  m.position.set((Math.random() - 0.5) * 36, Math.random() * 13, (Math.random() - 0.5) * 120);
+  scene.add(m);
+  glowSprites.push(m);
+}
+
+const trainGroup = new THREE.Group();
+scene.add(trainGroup);
+
+const metal = new THREE.MeshStandardMaterial({ color: 0x5c3687, metalness: 0.45, roughness: 0.38 });
+const trim = new THREE.MeshStandardMaterial({ color: 0x9866c8, metalness: 0.3, roughness: 0.42 });
+const glowWindowMat = new THREE.MeshStandardMaterial({ color: 0xffd6f0, emissive: 0xff74cf, emissiveIntensity: 0.8, roughness: 0.16 });
+const dark = new THREE.MeshStandardMaterial({ color: 0x170e26, roughness: 0.8 });
+const railMat = new THREE.MeshStandardMaterial({ color: 0x7b66b2, metalness: 0.7, roughness: 0.35 });
+const wood = new THREE.MeshStandardMaterial({ color: 0x573b6e, roughness: 0.72 });
+
+function box(w, h, d, material, x=0, y=0, z=0, parent=scene){
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+  mesh.position.set(x,y,z);
+  parent.add(mesh);
+  return mesh;
+}
+
+// Tracks
+box(0.18, 0.18, 210, railMat, -1.75, -0.55, -10);
+box(0.18, 0.18, 210, railMat, 1.75, -0.55, -10);
+for(let z=-110; z<95; z+=2.4){ box(4.6, 0.14, 0.32, wood, 0, -0.65, z); }
+
+// Exterior train with locomotive + 4 carriages
+const cars = [];
+const locomotive = new THREE.Group();
+locomotive.position.set(0,0,18);
+trainGroup.add(locomotive);
+box(4.4, 3.4, 8.8, metal, 0, 1.7, 0, locomotive);
+box(2.5, 2.4, 3.1, trim, -0.3, 4.0, 0.6, locomotive);
+box(1.2, 1.2, 1.5, trim, 1.85, 2.6, 2.4, locomotive);
+const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 1.4, 16), trim); chimney.position.set(1.4, 4.3, -1.2); locomotive.add(chimney);
+const headLight = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.3, 18), new THREE.MeshStandardMaterial({ color: 0xffefc6, emissive: 0xffd371, emissiveIntensity: 1.3 }));
+headLight.rotation.x = Math.PI/2; headLight.position.set(2.22, 2.2, 0); locomotive.add(headLight);
+const headBeam = new THREE.PointLight(0xffd982, 18, 36); headBeam.position.set(3.6, 2.2, 0); locomotive.add(headBeam);
+for (const p of [[1.5,0.15,-2.7],[1.5,0.15,2.7],[-1.5,0.15,-2.7],[-1.5,0.15,2.7]]) {
+  const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.28, 20), dark); wheel.rotation.z = Math.PI/2; wheel.position.set(...p); locomotive.add(wheel);
+}
+for(let i=0;i<4;i++){
+  const g = new THREE.Group();
+  g.position.set(0,0, 6 - i*11.5);
+  trainGroup.add(g);
+  box(4.1, 3.15, 8.9, metal, 0, 1.65, 0, g);
+  box(4.4, 0.22, 9.35, trim, 0, 3.34, 0, g);
+  box(4.22, 0.16, 9.0, trim, 0, 0.36, 0, g);
+  for (const side of [-1,1]){
+    for (let k=-2;k<=2;k++){
+      box(0.06, 1.28, 1.08, glowWindowMat, side*2.06, 2.0, k*1.45, g);
+      box(0.10, 1.46, 0.08, trim, side*2.12, 2.0, k*1.45, g);
+    }
+  }
+  // end doors exterior hints
+  box(0.08, 1.9, 1.3, trim, 0, 1.65, 4.46, g);
+  box(0.08, 1.9, 1.3, trim, 0, 1.65,-4.46, g);
+  for (const p of [[1.45,0.12,-2.95],[1.45,0.12,2.95],[-1.45,0.12,-2.95],[-1.45,0.12,2.95]]) {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.56, 0.56, 0.24, 20), dark); wheel.rotation.z = Math.PI/2; wheel.position.set(...p); g.add(wheel);
+  }
+  cars.push(g);
+}
+
+// Smoke particles
+const smoke = [];
+const smokeMat = new THREE.MeshBasicMaterial({ color: 0xf6d7ff, transparent: true, opacity: 0.22 });
+for(let i=0;i<18;i++){
+  const puff = new THREE.Mesh(new THREE.SphereGeometry(0.3 + Math.random()*0.26, 8, 8), smokeMat.clone());
+  puff.position.set(1.4 + Math.random()*0.3, 4.8 + i*0.18, -1.2 + (Math.random()-0.5)*0.2);
+  locomotive.add(puff);
+  smoke.push({mesh:puff, offset:i*0.2});
+}
+
+// INTERIOR TRAIN GROUP
+const interior = new THREE.Group();
+scene.add(interior);
+interior.visible = false;
+const interiorMat = new THREE.MeshStandardMaterial({ color: 0x2f1854, roughness: 0.74 });
+const interiorTrim = new THREE.MeshStandardMaterial({ color: 0x9f70d7, roughness: 0.35, metalness: 0.15 });
+const seatMat = new THREE.MeshStandardMaterial({ color: 0x6e3c97, roughness: 0.58 });
+const carpetMat = new THREE.MeshStandardMaterial({ color: 0x231233, roughness: 0.95 });
+const lampMat = new THREE.MeshStandardMaterial({ color: 0xffd5f1, emissive: 0xff8bdd, emissiveIntensity: 0.95 });
+
+const corridorLength = 4*10.6;
+box(3.6, 0.2, corridorLength, carpetMat, 0, 0, -corridorLength/2 + 5.3, interior);
+box(4.6, 0.15, corridorLength, interiorTrim, 0, -0.1, -corridorLength/2 + 5.3, interior);
+box(4.6, 0.18, corridorLength, interiorTrim, 0, 3.8, -corridorLength/2 + 5.3, interior);
+box(0.18, 3.8, corridorLength, interiorMat, -2.3, 1.9, -corridorLength/2 + 5.3, interior);
+box(0.18, 3.8, corridorLength, interiorMat,  2.3, 1.9, -corridorLength/2 + 5.3, interior);
+
+// carriage segmentation with doors and windows
+const frameTargets = [];
+const found = new Set();
+let activeFrame = null;
+for(let i=0;i<4;i++){
+  const baseZ = -i*10.6;
+  // cross wall / doorway to next carriage
+  if(i<3){
+    // The opening is a real doorway: two solid side walls and a header, not a closed partition.
+    box(1.58,3.8,0.12, interiorMat, -1.51,1.9, baseZ-5.3, interior);
+    box(1.58,3.8,0.12, interiorMat,  1.51,1.9, baseZ-5.3, interior);
+    box(1.36,1.18,0.12, interiorMat, 0,3.21, baseZ-5.3, interior);
+    box(0.09,2.62,0.2, interiorTrim, -0.73,1.31,baseZ-5.3,interior);
+    box(0.09,2.62,0.2, interiorTrim,  0.73,1.31,baseZ-5.3,interior);
+    box(1.48,0.10,0.2, interiorTrim, 0,2.62,baseZ-5.3,interior);
+  }
+  // carriage title plate
+  const title = makeLabel(`Carriage ${i+1}`, 340, 90, '#1e1138', '#ffd8f7');
+  title.position.set(0,3.0, baseZ+0.8); title.rotation.y=0; interior.add(title);
+  // windows and stars scrolling outside
+  for(const side of [-1,1]){
+    for(let w=0;w<3;w++){
+      const z = baseZ + 3.3 - w*3.05;
+      box(0.06,1.38,1.55, glowWindowMat, side*2.18, 2.02, z, interior);
+      box(0.12,1.56,0.08, interiorTrim, side*2.24, 2.02, z, interior);
+    }
+  }
+  // benches
+  for(const side of [-1,1]){
+    const seat = box(1.05,0.48,2.15, seatMat, side*1.35,0.45,baseZ+1.65, interior);
+    box(1.05,1.05,0.2, seatMat, side*1.35,1.05,baseZ+2.55, interior);
+    box(1.05,0.48,2.15, seatMat, side*1.35,0.45,baseZ-1.75, interior);
+    box(1.05,1.05,0.2, seatMat, side*1.35,1.05,baseZ-0.85, interior);
+  }
+  // overhead lamps
+  for(let l=0;l<2;l++){
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 14), lampMat);
+    lamp.position.set(0,3.35,baseZ+2.0-l*4.0);
+    interior.add(lamp);
+    const pl = new THREE.PointLight(0xff8ee3, 6, 9); pl.position.copy(lamp.position); interior.add(pl);
+  }
+  // memory frames two per carriage, alternating sides
+  for(let j=0;j<2;j++){
+    const index = i*2+j;
+    const side = j===0 ? -1 : 1;
+    const z = baseZ + (j===0? 0.9 : -2.3);
+    const frameGroup = new THREE.Group();
+    frameGroup.userData.memoryIndex = index;
+    frameGroup.position.set(side*2.08, 1.9, z);
+    frameGroup.rotation.y = side===-1 ? Math.PI/2 : -Math.PI/2;
+    const border = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.85, 0.12), interiorTrim);
+    frameGroup.add(border);
+    const art = makePoster(index);
+    // Pictures face the aisle, just in front of their frames.
+    art.position.set(0,0,0.07); frameGroup.add(art);
+    const light = new THREE.PointLight(0xff7fdd, 2.2, 4); light.position.set(side===-1?0.55:-0.55, 0.2, 0); frameGroup.add(light);
+    interior.add(frameGroup);
+    frameTargets.push(frameGroup);
+  }
+}
+
+function makeCanvasTexture(drawFn, width=700, height=450){
+  const c = document.createElement('canvas'); c.width=width; c.height=height;
+  const ctx = c.getContext('2d'); drawFn(ctx, width, height);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return tex;
+}
+function makePoster(index){
+  const tex = makeCanvasTexture((ctx,w,h)=>{
+    const g = ctx.createLinearGradient(0,0,w,h); g.addColorStop(0,'#2d1454'); g.addColorStop(1,'#120827');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    for(let i=0;i<90;i++){ ctx.fillStyle='rgba(255,255,255,'+(Math.random()*0.85)+')'; const x=Math.random()*w,y=Math.random()*h,r=Math.random()*2.4+0.6; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+    ctx.strokeStyle='rgba(255,220,250,.6)'; ctx.lineWidth=4; ctx.strokeRect(10,10,w-20,h-20);
+    ctx.fillStyle='#ffd4f6'; ctx.font='bold 46px Georgia'; ctx.textAlign='center'; ctx.fillText(memories[index].title, w/2, h-62);
+    ctx.fillStyle='rgba(255,228,249,.95)'; ctx.font='26px sans-serif';
+    wrapText(ctx, memories[index].text.split('\n')[0], w/2, h-150, w-100, 34);
+    ctx.fillStyle='#ffb5ea'; ctx.font='72px serif';
+    const icons=['✦','☾','❤','☆','✧','❀','∞','🚆'];
+    ctx.fillText(icons[index]||'✦', w/2, 108);
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.22, 1.58), new THREE.MeshBasicMaterial({ map: tex }));
+  return m;
+}
+function makeLabel(text, w=256, h=64, bg='#281445', fg='#ffe3f7'){
+  const tex = makeCanvasTexture((ctx,W,H)=>{
+    ctx.fillStyle = bg; roundRect(ctx, 0, 0, W, H, 18); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.2)'; ctx.lineWidth=2; roundRect(ctx,1,1,W-2,H-2,18); ctx.stroke();
+    ctx.fillStyle = fg; ctx.font='bold 30px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,W/2,H/2);
+  }, w, h);
+  return new THREE.Mesh(new THREE.PlaneGeometry(1.3, h/w*1.3), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+}
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function wrapText(ctx,text,x,y,maxWidth,lineHeight){
+  const words=text.split(' '); let line=''; let yy=y;
+  for(let n=0;n<words.length;n++){
+    const test = line + words[n] + ' '; if(ctx.measureText(test).width > maxWidth && n>0){ ctx.fillText(line, x, yy); line = words[n] + ' '; yy += lineHeight; }
+    else line = test;
+  }
+  ctx.fillText(line, x, yy);
+}
+
+let mode = 'outside';
+const ui = {
+  intro: document.getElementById('intro'), startBtn: document.getElementById('startBtn'),
+  enterBtn: document.getElementById('enterBtn'), backOutsideBtn: document.getElementById('backOutsideBtn'),
+  status: document.querySelector('#status strong'), statusSub: document.querySelector('#status span'),
+  counter: document.querySelector('#counter strong'), counterSub: document.querySelector('#counter span'),
+  hint: document.getElementById('hint'), prompt: document.getElementById('centerPrompt'),
+  memoryPanel: document.getElementById('memoryPanel'), memoryTitle: document.getElementById('memoryTitle'), memoryText: document.getElementById('memoryText'), memoryClose: document.getElementById('memoryClose')
+};
+
+ui.startBtn.onclick = () => ui.intro.remove();
+ui.enterBtn.onclick = () => setMode('inside');
+ui.backOutsideBtn.onclick = () => setMode('outside');
+ui.memoryClose.onclick = () => { ui.memoryPanel.style.display='none'; activeFrame=null; };
+
+function setMode(next){
+  mode = next;
+  const inside = mode === 'inside';
+  trainGroup.visible = !inside;
+  interior.visible = inside;
+  ui.enterBtn.style.display = inside ? 'none' : 'inline-flex';
+  ui.backOutsideBtn.style.display = inside ? 'inline-flex' : 'none';
+  ui.status.textContent = inside ? 'Inside the train' : 'Outside the train';
+  ui.statusSub.textContent = inside ? 'Walk through all 4 carriages and find the memories' : 'Look around the magical train, then board it';
+  ui.hint.textContent = inside ? 'Walk through the corridor • click a framed picture or press E near it • mobile: use the on-screen buttons' : 'Drag to orbit around the train • press Enter the train when you are ready';
+  ui.prompt.style.display='none';
+  if(inside){ camOutsideTheta = 0.55; player.z = 0.5; yaw = Math.PI; pitch = 0; }
+}
+setMode('outside');
+
+const player = { x: 0, y: 1.67, z: 0.5, speed: 3.9 };
+let yaw = Math.PI, pitch = 0;
+let camOutsideTheta = 0.95;
+let pointerDown = false, lastX = 0, lastY = 0, pointerMotion=0;
+const key = {};
+const mobileMove = { forward:false, back:false, left:false, right:false };
+const mobileLook = { left:false, right:false };
+
+function updateCounter(){ ui.counter.textContent = `${found.size} / ${memories.length} memories`; ui.counterSub.textContent = found.size === memories.length ? 'all found — beautiful journey' : 'found so far'; }
+updateCounter();
+
+addEventListener('keydown', e => {
+  key[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === 'e' && mode==='inside' && activeFrame) openMemory(activeFrame.userData.memoryIndex);
+  if (e.key === 'Escape') ui.memoryPanel.style.display='none';
+});
+addEventListener('keyup', e => key[e.key.toLowerCase()] = false);
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  pointerDown = true; pointerMotion=0; lastX = e.clientX; lastY = e.clientY; renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if(!pointerDown) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY; pointerMotion += Math.abs(dx)+Math.abs(dy); lastX = e.clientX; lastY = e.clientY;
+  if(mode === 'outside') camOutsideTheta -= dx * 0.006;
+  else { yaw -= dx * 0.0048; pitch = Math.max(-0.42, Math.min(0.42, pitch - dy*0.0035)); }
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  pointerDown = false;
+  const hit = pointerMotion < 10 ? pickInteractive(e.clientX, e.clientY) : null;
+  if(hit && mode==='inside'){ openMemory(hit.userData.memoryIndex); }
+});
+
+function registerHoldButtons(){
+  document.querySelectorAll('[data-move]').forEach(btn => {
+    const dir = btn.dataset.move;
+    if(!dir) return;
+    const on = v => mobileMove[dir] = v;
+    btn.addEventListener('pointerdown', ()=>on(true));
+    btn.addEventListener('pointerup', ()=>on(false));
+    btn.addEventListener('pointerleave', ()=>on(false));
+    btn.addEventListener('pointercancel', ()=>on(false));
+  });
+  document.querySelectorAll('[data-look]').forEach(btn => {
+    const dir = btn.dataset.look;
+    const on = v => mobileLook[dir] = v;
+    btn.addEventListener('pointerdown', ()=>on(true));
+    btn.addEventListener('pointerup', ()=>on(false));
+    btn.addEventListener('pointerleave', ()=>on(false));
+    btn.addEventListener('pointercancel', ()=>on(false));
+  });
+}
+registerHoldButtons();
+
+function pickInteractive(clientX, clientY){
+  const mouse = new THREE.Vector2(clientX / innerWidth * 2 - 1, -(clientY / innerHeight) * 2 + 1);
+  const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects(frameTargets, true);
+  if(!hits.length || hits[0].distance > 4.5) return null;
+  let o = hits[0].object;
+  while(o && !frameTargets.includes(o)) o = o.parent;
+  return o;
+}
+
+function openMemory(index){
+  found.add(index); updateCounter();
+  ui.memoryTitle.textContent = memories[index].title;
+  ui.memoryText.textContent = memories[index].text;
+  ui.memoryPanel.style.display = 'block';
+}
+
+function updateActiveFrame(){
+  activeFrame = null;
+  if(mode !== 'inside' || ui.memoryPanel.style.display === 'block') { ui.prompt.style.display='none'; return; }
+  let best = null, bestDist = 1.8;
+  for(const frame of frameTargets){
+    const pos = new THREE.Vector3(); frame.getWorldPosition(pos);
+    const dist = camera.position.distanceTo(pos);
+    if(dist < bestDist){
+      const dirTo = pos.clone().sub(camera.position).normalize();
+      const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir);
+      const align = dirTo.dot(camDir);
+      if(align > 0.88){ best = frame; bestDist = dist; }
+    }
+  }
+  activeFrame = best;
+  ui.prompt.style.display = best ? 'block' : 'none';
+}
+
+function animate(timeMs){
+  requestAnimationFrame(animate);
+  const t = timeMs * 0.001;
+
+  trainGroup.position.y = Math.sin(t*2.1) * 0.05;
+  trainGroup.rotation.z = Math.sin(t*1.45) * 0.004;
+  locomotive.children.forEach(()=>{});
+  smoke.forEach((puff, i) => {
+    const m = puff.mesh;
+    const p = (t*0.45 + puff.offset) % 1;
+    m.position.set(1.45 + Math.sin((t+i)*1.7)*0.1, 4.7 + p*3.2, -1.15 + Math.cos((t+i)*1.2)*0.15);
+    const s = 0.6 + p*1.6;
+    m.scale.setScalar(s);
+    m.material.opacity = 0.22 * (1-p);
+  });
+
+  for(let i=0;i<glowSprites.length;i++){
+    const g = glowSprites[i];
+    g.position.y += 0.011 + (i%6)*0.0008;
+    g.position.x += Math.sin(t + i) * 0.001;
+    if(g.position.y > 18) g.position.y = 0;
+  }
+
+  if(mode === 'outside'){
+    camera.position.set(Math.sin(camOutsideTheta)*31, 11 + Math.sin(t*1.1)*0.2, Math.cos(camOutsideTheta)*31 - 5);
+    camera.lookAt(0, 2.2, -5);
+  } else {
+    if(mobileLook.left) yaw += 0.035;
+    if(mobileLook.right) yaw -= 0.035;
+    const forward = (key['w']||key['arrowup']||mobileMove.forward?1:0) + (key['s']||key['arrowdown']||mobileMove.back?-1:0);
+    const strafe = (key['a']||key['arrowleft']||mobileMove.left?1:0) + (key['d']||key['arrowright']||mobileMove.right?-1:0);
+    const speed = player.speed * 0.016;
+    const dirX = Math.sin(yaw), dirZ = Math.cos(yaw);
+    player.x += (dirX*forward + dirZ*strafe) * speed;
+    player.z += (dirZ*forward - dirX*strafe) * speed;
+    player.x = Math.max(-0.75, Math.min(0.75, player.x));
+    player.z = Math.max(-31.2, Math.min(2.6, player.z));
+    camera.position.set(player.x, player.y + Math.sin(t*9)*0.018*(Math.abs(forward)+Math.abs(strafe)), player.z);
+    const look = new THREE.Vector3(player.x + Math.sin(yaw), player.y + pitch, player.z + Math.cos(yaw));
+    camera.lookAt(look);
+    updateActiveFrame();
+  }
+
+  renderer.render(scene, camera);
+}
+animate(0);
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
