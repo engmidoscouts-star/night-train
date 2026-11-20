@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Starlight Express — Explore Our Train</title>
+<title>Starlight Express V5 — The Enchanted Night Train</title>
 <meta name="theme-color" content="#110822" />
 <style>
   *{box-sizing:border-box}
@@ -11,8 +11,8 @@
   canvas{display:block}
   #ui{position:fixed;inset:0;pointer-events:none}
   .card{background:rgba(29,14,58,.82);backdrop-filter:blur(12px);border:1px solid rgba(247,186,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.28);border-radius:20px}
-  #intro{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;padding:20px;background:radial-gradient(circle at 50% 25%,rgba(227,145,255,.22),transparent 25%),linear-gradient(180deg,#15092f 0%,#080412 100%)}
-  #intro .box{max-width:700px;padding:28px 26px;text-align:center}
+  #intro{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;padding:20px;background:radial-gradient(circle at 50% 25%,rgba(211,119,240,.23),transparent 45%),linear-gradient(180deg,rgba(10,5,26,.67) 0%,rgba(8,4,18,.77) 100%)}
+  #intro .box{max-width:700px;padding:28px 26px;text-align:center;background:rgba(23,9,43,.86);border:1px solid rgba(255,220,244,.42);backdrop-filter:blur(14px);box-shadow:0 20px 85px rgba(0,0,0,.6)}
   #intro h1{margin:8px 0 10px;font-size:clamp(34px,7vw,64px);font-family:Georgia,serif;color:#ffd7fa;text-shadow:0 0 30px rgba(255,153,241,.25)}
   #intro p{margin:10px auto 0;max-width:560px;line-height:1.7;color:#f5e7ff}
   #intro .moon{font-size:58px;filter:drop-shadow(0 0 18px rgba(255,180,243,.45))}
@@ -48,7 +48,7 @@
   <div class="box card">
     <div class="moon">🌙</div>
     <h1>Starlight Express</h1>
-    <p>A dreamy night train carrying our memories through the stars. Start outside the train, then step inside and walk through each carriage to discover the pictures yourself.</p>
+    <p>A magical sleeper train glowing under the stars. Admire the golden locomotive from outside, then board the carriages and find eight hidden memories.</p>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
       <button id="startBtn" class="primary">Begin our journey ✨</button>
     </div>
@@ -412,6 +412,15 @@ function registerHoldButtons(){
 }
 registerHoldButtons();
 
+// V5 visual layer: gracefully retain the working V4 scene if the add-on fails.
+let graphics = { update(){} };
+import('./graphics-v5.js').then(({upgradeTrain}) => {
+  graphics = upgradeTrain({
+    THREE, scene, renderer, locomotive, cars, interior, moon, smoke, glowSprites,
+    metal, trim, glowWindowMat, dark, wood, corridorLength, makeCanvasTexture
+  });
+}).catch(error => console.error('Optional V5 graphics failed to load:', error));
+
 function pickInteractive(clientX, clientY){
   const mouse = new THREE.Vector2(clientX / innerWidth * 2 - 1, -(clientY / innerHeight) * 2 + 1);
   const ray = new THREE.Raycaster(); ray.setFromCamera(mouse, camera);
@@ -490,6 +499,7 @@ function animate(timeMs){
     updateActiveFrame();
   }
 
+  graphics.update(timeMs,mode);
   renderer.render(scene, camera);
 }
 animate(0);
