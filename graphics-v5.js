@@ -204,7 +204,7 @@ export function upgradeTrain(ctx) {
     for(const side of [-1,1]){
       bx(parent,.09,.085,9.3,side*2.14,3.37,0,gold);
       for(let z=-4;z<=4;z+=2){
-        bx(parent,.035,.08,4.2,0,4.17,z,brightGold);
+        bx(parent,4.05,.06,.085,0,4.17,z,brightGold);
       }
     }
     return m;
